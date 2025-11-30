@@ -1,0 +1,252 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DRIVER
+  CLIENT
+}
+
+enum DriverStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum VehicleStatus {
+  ACTIVE
+  IN_MAINTENANCE
+  INACTIVE
+}
+
+enum MaintenanceType {
+  SERVICE
+  REPAIR
+  INSPECTION
+}
+
+enum TripStatus {
+  PLANNED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum ShipmentStatus {
+  PENDING
+  ASSIGNED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum ExpenseType {
+  FUEL
+  TOLL
+  REPAIR
+  MAINTENANCE
+  OTHER
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum NotificationType {
+  SYSTEM
+  TRIP_UPDATE
+  PAYMENT
+  SHIPMENT
+  GENERAL
+}
+
+enum PriorityLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model User {
+  id              String         @id @default(cuid())
+  name            String
+  email           String         @unique
+  password        String
+  role            UserRole
+  phone           String?
+  isActive        Boolean        @default(true)
+  lastLogin       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  driverProfile   DriverProfile?
+  clientProfile   ClientProfile?
+  notifications   Notification[]
+  expensesCreated Expense[]      @relation("UserExpenses")
+
+  @@index([role])
+}
+
+model DriverProfile {
+  id              String       @id @default(cuid())
+  userId          String       @unique
+  licenseNumber   String       @unique
+  experienceYears Int          @default(0)
+  status          DriverStatus @default(ACTIVE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips           Trip[]
+
+  @@index([status])
+}
+
+model ClientProfile {
+  id          String     @id @default(cuid())
+  userId      String     @unique
+  companyName String
+  address     String
+  vatNumber   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shipments   Shipment[]
+
+  @@index([companyName])
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  plateNumber     String        @unique
+  type            String
+  brand           String
+  model           String
+  status          VehicleStatus @default(ACTIVE)
+  mileage         Int           @default(0)
+  purchaseDate    DateTime?
+  lastServiceDate DateTime?
+  capacityWeight  Decimal?      @db.Decimal(10, 2)
+  capacityVolume  Decimal?      @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  maintenances    Maintenance[]
+  trips           Trip[]
+  expenses        Expense[]
+
+  @@index([status])
+}
+
+model Maintenance {
+  id          String          @id @default(cuid())
+  vehicleId   String
+  date        DateTime
+  cost        Decimal         @db.Decimal(10, 2)
+  description String?
+  type        MaintenanceType
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, date])
+}
+
+model Trip {
+  id                String        @id @default(cuid())
+  driverId          String
+  vehicleId         String
+  departure         String
+  destination       String
+  dateStart         DateTime
+  dateEnd           DateTime?
+  estimatedDuration Int?
+  actualDuration    Int?
+  distance          Decimal?      @db.Decimal(10, 2)
+  status            TripStatus    @default(PLANNED)
+  totalCost         Decimal       @default(0) @db.Decimal(10, 2)
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  driver            DriverProfile @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  vehicle           Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  shipments         Shipment[]
+  expenses          Expense[]
+
+  @@index([status])
+  @@index([driverId])
+  @@index([vehicleId])
+  @@index([dateStart])
+}
+
+model Shipment {
+  id              String         @id @default(cuid())
+  tripId          String?
+  clientId        String
+  trackingNumber  String         @unique
+  description     String
+  weight          Decimal?       @db.Decimal(10, 2)
+  volume          Decimal?       @db.Decimal(10, 2)
+  price           Decimal        @db.Decimal(10, 2)
+  pickupAddress   String
+  deliveryAddress String
+  priority        PriorityLevel  @default(NORMAL)
+  status          ShipmentStatus @default(PENDING)
+  pickupDate      DateTime?
+  deliveryDate    DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  trip            Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  client          ClientProfile  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model Expense {
+  id          String      @id @default(cuid())
+  tripId      String?
+  vehicleId   String?
+  createdById String?
+  type        ExpenseType
+  amount      Decimal     @db.Decimal(10, 2)
+  date        DateTime
+  note        String?
+  receiptUrl  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  trip        Trip?       @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  createdBy   User?       @relation("UserExpenses", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+  @@index([vehicleId])
+  @@index([date])
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType   @default(GENERAL)
+  status    NotificationStatus @default(UNREAD)
+  link      String?
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
