@@ -7,8 +7,9 @@ import { MapPin, Package, Truck, Clock, CheckCircle2, XCircle, AlertCircle, Play
 import Link from "next/link";
 import { format } from "date-fns";
 import { driverUpdateTripStatus } from "@/lib/actions/driver-actions";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import type { TripStatus } from "@prisma/client";
 
 type CurrentTrip = {
@@ -32,19 +33,32 @@ interface CurrentTripCardProps {
   trip: CurrentTrip | null;
 }
 
-export default function CurrentTripCard({ trip }: CurrentTripCardProps) {
+export default function CurrentTripCard({ trip: initialTrip }: CurrentTripCardProps) {
   const [isPending, startTransition] = useTransition();
   const [isReportingIssue, setIsReportingIssue] = useState(false);
+  const [trip, setTrip] = useState(initialTrip);
+  const router = useRouter();
+
+  // Sync trip state when initialTrip prop changes
+  useEffect(() => {
+    setTrip(initialTrip);
+  }, [initialTrip]);
 
   const handleStatusUpdate = async (newStatus: "COMPLETED" | "CANCELLED") => {
     if (!trip) return;
+
+    // Optimistic update - update UI immediately
+    setTrip({ ...trip, status: newStatus });
 
     startTransition(async () => {
       const result = await driverUpdateTripStatus(trip.id, newStatus);
       if (result.success) {
         toast.success(`Trip ${newStatus === "COMPLETED" ? "completed" : "cancelled"} successfully`);
-        window.location.reload();
+        // Refresh server data in background without full page reload
+        router.refresh();
       } else {
+        // Revert optimistic update on error
+        setTrip(initialTrip);
         toast.error(result.error || "Failed to update trip status");
       }
     });
@@ -80,12 +94,18 @@ export default function CurrentTripCard({ trip }: CurrentTripCardProps) {
   const handleStartTrip = async () => {
     if (!trip) return;
 
+    // Optimistic update - update UI immediately
+    setTrip({ ...trip, status: "ONGOING" });
+
     startTransition(async () => {
       const result = await driverUpdateTripStatus(trip.id, "ONGOING");
       if (result.success) {
         toast.success("Trip started successfully");
-        window.location.reload();
+        // Refresh server data in background without full page reload
+        router.refresh();
       } else {
+        // Revert optimistic update on error
+        setTrip(initialTrip);
         toast.error(result.error || "Failed to start trip");
       }
     });

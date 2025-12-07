@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
 import { TripSchema } from "@/lib/FormValidationSchema";
+import { createNotification } from "@/lib/actions/notification-management";
 
 // ==================== Types ====================
 
@@ -90,7 +91,7 @@ export async function createTrip(currentState: CurrentState, formData: TripSchem
       };
     }
 
-    await prisma.trip.create({
+    const trip = await prisma.trip.create({
       data: {
         driverId: formData.driverId,
         vehicleId: formData.vehicleId,
@@ -106,6 +107,14 @@ export async function createTrip(currentState: CurrentState, formData: TripSchem
       },
     });
 
+    // Notify driver about new trip assignment
+    await createNotification({
+      userId: driver.user.id,
+      title: "New Trip Assigned",
+      message: `You have been assigned a new trip: ${formData.departure} → ${formData.destination}`,
+      type: "TRIP_UPDATE",
+      link: `/list/trips/${trip.id}`,
+    });
 
     return {
       success: true,
@@ -218,10 +227,56 @@ export async function updateTrip(currentState: CurrentState, formData: TripSchem
     if (formData.totalCost !== undefined) updateData.totalCost = formData.totalCost;
     if (formData.notes !== undefined) updateData.notes = formData.notes || null;
 
+    // Check if status is changing
+    const statusChanged = formData.status && formData.status !== existingTrip.status;
+
     await prisma.trip.update({
       where: { id: formData.id },
       data: updateData,
     });
+
+    // Notify driver and admin if status changed
+    if (statusChanged) {
+      const updatedTrip = await prisma.trip.findUnique({
+        where: { id: formData.id },
+        include: {
+          driver: {
+            include: {
+              user: {
+                select: { id: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (updatedTrip) {
+        // Notify driver
+        await createNotification({
+          userId: updatedTrip.driver.user.id,
+          title: "Trip Status Updated",
+          message: `Trip ${updatedTrip.departure} → ${updatedTrip.destination} is now ${formData.status}`,
+          type: "TRIP_UPDATE",
+          link: `/list/trips/${formData.id}`,
+        });
+
+        // Notify all admins
+        const admins = await prisma.user.findMany({
+          where: { role: "ADMIN", isActive: true },
+          select: { id: true },
+        });
+
+        for (const admin of admins) {
+          await createNotification({
+            userId: admin.id,
+            title: "Trip Status Updated",
+            message: `Trip ${updatedTrip.departure} → ${updatedTrip.destination} is now ${formData.status}`,
+            type: "TRIP_UPDATE",
+            link: `/list/trips/${formData.id}`,
+          });
+        }
+      }
+    }
 
 
     return {
@@ -440,6 +495,47 @@ export async function updateTripStatus(tripId: string, status: TripStatus) {
         }
       }
     });
+
+    // Notify driver and admin about status change
+    const updatedTrip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        driver: {
+          include: {
+            user: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (updatedTrip) {
+      // Notify driver
+      await createNotification({
+        userId: updatedTrip.driver.user.id,
+        title: "Trip Status Updated",
+        message: `Trip ${updatedTrip.departure} → ${updatedTrip.destination} is now ${status}`,
+        type: "TRIP_UPDATE",
+        link: `/list/trips/${tripId}`,
+      });
+
+      // Notify all admins
+      const admins = await prisma.user.findMany({
+        where: { role: "ADMIN", isActive: true },
+        select: { id: true },
+      });
+
+      for (const admin of admins) {
+        await createNotification({
+          userId: admin.id,
+          title: "Trip Status Updated",
+          message: `Trip ${updatedTrip.departure} → ${updatedTrip.destination} is now ${status}`,
+          type: "TRIP_UPDATE",
+          link: `/list/trips/${tripId}`,
+        });
+      }
+    }
 
     return {
       success: true,

@@ -15,6 +15,7 @@ import {
   UserCheck,
   Building2,
   AlertCircle,
+  Bell,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -35,6 +36,7 @@ const navigation: NavigationItem[] = [
   { name: "Shipments", href: "/list/shipments", icon: Package, visible: ["admin", "driver", "client"] },
   { name: "Issues", href: "/list/issues", icon: AlertCircle, visible: ["admin"] },
   { name: "Expenses", href: "/list/expenses", icon: DollarSign, visible: ["admin", "driver"] },
+  { name: "Notifications", href: "/notifications", icon: Bell, visible: ["admin", "driver", "client"] },
   { name: "Reports", href: "/admin/reports", icon: FileText, visible: ["admin", "driver", "client"] },
   { name: "Settings", href: "/admin/settings", icon: Settings, visible: ["admin", "driver", "client"] },
 ];

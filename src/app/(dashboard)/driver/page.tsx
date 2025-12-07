@@ -186,14 +186,20 @@ export default async function DriverPage() {
     }),
   ]);
 
-  // Mock notifications (will be replaced with real notifications later)
-  const notifications: Array<{
-    id: string;
-    title: string;
-    message: string;
-    createdAt: Date;
-    read: boolean;
-  }> = [];
+  // Fetch real notifications
+  const notificationsData = await prisma.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  const notifications = notificationsData.map((n) => ({
+    id: n.id,
+    title: n.title,
+    message: n.message,
+    createdAt: n.createdAt,
+    read: n.status === "READ",
+  }));
 
   return (
     <div className="space-y-6">

@@ -3,6 +3,7 @@
 import { UserButton } from "@clerk/nextjs";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
 
 export function Header() {
   return (
@@ -18,6 +19,7 @@ export function Header() {
         </div>
       </div>
       <div className="flex items-center gap-4">
+        <NotificationBell />
         <UserButton />
       </div>
     </header>

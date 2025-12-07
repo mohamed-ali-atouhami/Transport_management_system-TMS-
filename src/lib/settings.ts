@@ -17,5 +17,6 @@ export const routeAccessMap: RouteAccessMap = {
   "/list/issues": ["admin"],
   "/list/expenses": ["admin", "driver"],
   "/list/notifications": ["admin"],
+  "/notifications": ["admin", "driver", "client"],
   "/list/maintenance": ["admin"],
 };

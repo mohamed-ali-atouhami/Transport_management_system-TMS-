@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/rbac";
 import { ShipmentSchema, ClientShipmentRequestSchema } from "@/lib/FormValidationSchema";
 import { auth } from "@clerk/nextjs/server";
+import { createNotification } from "@/lib/actions/notification-management";
 
 // ==================== Types ====================
 
@@ -64,7 +65,7 @@ export async function createShipment(currentState: CurrentState, formData: Shipm
       }
     }
 
-    await prisma.shipment.create({
+    const shipment = await prisma.shipment.create({
       data: {
         clientId: formData.clientId,
         tripId: formData.tripId || null,
@@ -80,6 +81,15 @@ export async function createShipment(currentState: CurrentState, formData: Shipm
         pickupDate: formData.pickupDate || null,
         deliveryDate: formData.deliveryDate || null,
       },
+    });
+
+    // Notify client about shipment creation
+    await createNotification({
+      userId: client.user.id,
+      title: "Shipment Request Received",
+      message: `Your shipment request ${shipment.trackingNumber} has been received`,
+      type: "SHIPMENT",
+      link: `/list/shipments/${shipment.id}`,
     });
 
     return {
@@ -198,10 +208,47 @@ export async function updateShipment(currentState: CurrentState, formData: Shipm
     if (processedFormData.pickupDate !== undefined) updateData.pickupDate = processedFormData.pickupDate;
     if (processedFormData.deliveryDate !== undefined) updateData.deliveryDate = processedFormData.deliveryDate;
 
+    // Check if status is changing
+    const statusChanged = processedFormData.status && processedFormData.status !== existingShipment.status;
+
     await prisma.shipment.update({
       where: { id: processedFormData.id },
       data: updateData,
     });
+
+    // Notify client if status changed
+    if (statusChanged) {
+      const updatedShipment = await prisma.shipment.findUnique({
+        where: { id: processedFormData.id },
+        include: {
+          client: {
+            include: {
+              user: {
+                select: { id: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (updatedShipment) {
+        let title = "Shipment Status Updated";
+        let message = `Shipment ${updatedShipment.trackingNumber} is now ${processedFormData.status}`;
+
+        if (processedFormData.status === "DELIVERED") {
+          title = "Shipment Delivered";
+          message = `Your shipment ${updatedShipment.trackingNumber} has been delivered`;
+        }
+
+        await createNotification({
+          userId: updatedShipment.client.user.id,
+          title,
+          message,
+          type: "SHIPMENT",
+          link: `/list/shipments/${processedFormData.id}`,
+        });
+      }
+    }
 
     return {
       success: true,
@@ -300,6 +347,38 @@ export async function updateShipmentStatus(shipmentId: string, status: ShipmentS
       data: updateData,
     });
 
+    // Notify client about status change
+    const updatedShipment = await prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      include: {
+        client: {
+          include: {
+            user: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (updatedShipment) {
+      let title = "Shipment Status Updated";
+      let message = `Shipment ${updatedShipment.trackingNumber} is now ${status}`;
+
+      if (status === "DELIVERED") {
+        title = "Shipment Delivered";
+        message = `Your shipment ${updatedShipment.trackingNumber} has been delivered`;
+      }
+
+      await createNotification({
+        userId: updatedShipment.client.user.id,
+        title,
+        message,
+        type: "SHIPMENT",
+        link: `/list/shipments/${shipmentId}`,
+      });
+    }
+
     return {
       success: true,
     };
@@ -378,7 +457,7 @@ export async function requestShipment(currentState: CurrentState, formData: Clie
     }
 
     // Create shipment with auto-assigned values
-    await prisma.shipment.create({
+    const shipment = await prisma.shipment.create({
       data: {
         clientId: clientProfile.id,
         tripId: null, // Will be assigned by admin later
@@ -394,6 +473,15 @@ export async function requestShipment(currentState: CurrentState, formData: Clie
         pickupDate: formData.pickupDate || null,
         deliveryDate: null,
       },
+    });
+
+    // Notify client about shipment request
+    await createNotification({
+      userId: clientProfile.user.id,
+      title: "Shipment Request Received",
+      message: `Your shipment request ${shipment.trackingNumber} has been received`,
+      type: "SHIPMENT",
+      link: `/list/shipments/${shipment.id}`,
     });
 
     return {
@@ -478,6 +566,30 @@ export async function assignShipmentToTrip(shipmentId: string, tripId: string) {
         },
       });
     });
+
+    // Notify client about shipment assignment
+    const updatedShipment = await prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      include: {
+        client: {
+          include: {
+            user: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (updatedShipment) {
+      await createNotification({
+        userId: updatedShipment.client.user.id,
+        title: "Shipment Assigned",
+        message: `Your shipment ${updatedShipment.trackingNumber} has been assigned to a trip`,
+        type: "SHIPMENT",
+        link: `/list/shipments/${shipmentId}`,
+      });
+    }
 
     return {
       success: true,

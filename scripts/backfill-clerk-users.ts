@@ -18,7 +18,7 @@ import { PrismaClient } from "@prisma/client";
 // Check for required environment variable
 if (!process.env.CLERK_SECRET_KEY) {
   console.error("❌ Error: CLERK_SECRET_KEY environment variable is required");
-  console.error("   Make sure your .env.local file has CLERK_SECRET_KEY set");
+  console.error("   Make sure your .env file has CLERK_SECRET_KEY set");
   process.exit(1);
 }
 

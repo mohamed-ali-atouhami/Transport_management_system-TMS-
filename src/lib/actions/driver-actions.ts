@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import type { TripStatus, IssueType, PriorityLevel } from "@prisma/client";
+import { createNotification } from "@/lib/actions/notification-management";
 
 /**
  * Update trip status (driver can only update their own trips)
@@ -179,6 +180,61 @@ export async function driverUpdateTripStatus(tripId: string, status: TripStatus)
       }
     });
 
+    // Notify driver and admin about status update
+    const updatedTrip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        driver: {
+          include: {
+            user: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (updatedTrip) {
+      // Notify driver with action-specific message
+      let driverTitle = "Trip Status Updated";
+      let driverMessage = `Your trip ${updatedTrip.departure} → ${updatedTrip.destination} is now ${status}`;
+      
+      if (status === "ONGOING") {
+        driverTitle = "Trip Started";
+        driverMessage = `You started the trip from ${updatedTrip.departure} to ${updatedTrip.destination}`;
+      } else if (status === "COMPLETED") {
+        driverTitle = "Trip Completed";
+        driverMessage = `You completed the trip from ${updatedTrip.departure} to ${updatedTrip.destination}`;
+      } else if (status === "CANCELLED") {
+        driverTitle = "Trip Cancelled";
+        driverMessage = `You cancelled the trip from ${updatedTrip.departure} to ${updatedTrip.destination}`;
+      }
+
+      await createNotification({
+        userId: updatedTrip.driver.user.id,
+        title: driverTitle,
+        message: driverMessage,
+        type: "TRIP_UPDATE",
+        link: `/list/trips/${tripId}`,
+      });
+
+      // Notify all admins
+      const admins = await prisma.user.findMany({
+        where: { role: "ADMIN", isActive: true },
+        select: { id: true },
+      });
+
+      for (const admin of admins) {
+        await createNotification({
+          userId: admin.id,
+          title: "Driver Updated Trip Status",
+          message: `Driver ${updatedTrip.driver.user.name} updated trip ${updatedTrip.departure} → ${updatedTrip.destination} to ${status}`,
+          type: "TRIP_UPDATE",
+          link: `/list/trips/${tripId}`,
+        });
+      }
+    }
+
     return {
       success: true,
     };
@@ -209,9 +265,14 @@ export async function reportTripIssue(
       };
     }
 
-    // Get driver profile
+    // Get driver profile with user
     const driverProfile = await prisma.driverProfile.findUnique({
       where: { userId },
+      include: {
+        user: {
+          select: { id: true, name: true },
+        },
+      },
     });
 
     if (!driverProfile) {
@@ -242,7 +303,7 @@ export async function reportTripIssue(
     }
 
     // Create issue record
-    await prisma.issue.create({
+    const issue = await prisma.issue.create({
       data: {
         tripId,
         driverId: driverProfile.id,
@@ -251,7 +312,31 @@ export async function reportTripIssue(
         description: description.trim(),
         status: "OPEN",
       },
+      include: {
+        trip: {
+          select: {
+            departure: true,
+            destination: true,
+          },
+        },
+      },
     });
+
+    // Notify all admins about the issue
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", isActive: true },
+      select: { id: true },
+    });
+
+    for (const admin of admins) {
+      await createNotification({
+        userId: admin.id,
+        title: "New Issue Reported",
+        message: `Driver ${driverProfile.user.name} reported a ${severity} issue: ${issueType}`,
+        type: "SYSTEM",
+        link: `/list/issues`,
+      });
+    }
 
     return {
       success: true,

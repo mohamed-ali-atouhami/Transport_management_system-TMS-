@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { requireRole } from "@/lib/rbac";
 import type { IssueStatus } from "@prisma/client";
+import { createNotification } from "@/lib/actions/notification-management";
 
 /**
  * Get all issues (admin only)
@@ -120,10 +121,38 @@ export async function updateIssueStatus(issueId: string, status: IssueStatus, re
       updateData.resolution = null;
     }
 
+    // Get issue before update to check if status is changing to resolved
+    const issue = await prisma.issue.findUnique({
+      where: { id: issueId },
+      include: {
+        driver: {
+          include: {
+            user: {
+              select: { id: true },
+            },
+          },
+        },
+        trip: {
+          select: { id: true },
+        },
+      },
+    });
+
     await prisma.issue.update({
       where: { id: issueId },
       data: updateData,
     });
+
+    // Notify driver if issue is resolved
+    if (issue && (status === "RESOLVED" || status === "CLOSED")) {
+      await createNotification({
+        userId: issue.driver.user.id,
+        title: "Issue Resolved",
+        message: "Your reported issue has been resolved",
+        type: "SYSTEM",
+        link: `/list/trips/${issue.trip.id}`,
+      });
+    }
 
     return {
       success: true,
