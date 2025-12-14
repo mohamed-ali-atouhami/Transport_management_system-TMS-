@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Missing Svix headers" }, { status: 400 });
   }
 
-  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
+  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
     return NextResponse.json({ message: "Webhook secret not configured" }, { status: 500 });
   }
