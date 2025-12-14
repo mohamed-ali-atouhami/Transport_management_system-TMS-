@@ -362,7 +362,7 @@ export default async function ClientDetailPage({ params }: Props) {
                         <p className="text-sm text-gray-600 mb-1">{shipment.description}</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                           <div>
-                            <span className="font-medium">Price:</span> {formatCurrency(shipment.price)}
+                            <span className="font-medium">Price:</span> {formatCurrency(Number(shipment.price))}
                           </div>
                           <div>
                             <span className="font-medium">Created:</span>{" "}

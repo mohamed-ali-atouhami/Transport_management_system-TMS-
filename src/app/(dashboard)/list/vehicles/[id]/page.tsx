@@ -455,7 +455,7 @@ export default async function VehicleDetailPage({ params }: Props) {
                             {format(new Date(maintenance.date), "MMM d, yyyy")}
                           </div>
                           <div>
-                            <span className="font-medium">Cost:</span> {formatCurrency(maintenance.cost)}
+                            <span className="font-medium">Cost:</span> {formatCurrency(Number(maintenance.cost))}
                           </div>
                           {maintenance.description && (
                             <div className="md:col-span-3">

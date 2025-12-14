@@ -129,8 +129,11 @@ export default function ExpenseForm({
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    {...field}
+                    value={typeof field.value === 'number' ? field.value : (typeof field.value === 'string' ? parseFloat(field.value) || 0 : 0)}
                     onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
                   />
                 </FormControl>
                 <FormMessage />
@@ -149,9 +152,18 @@ export default function ExpenseForm({
                 <FormControl>
                   <Input
                     type="date"
-                    {...field}
-                    value={field.value ? new Date(field.value).toISOString().split("T")[0] : ""}
-                    onChange={(e) => field.onChange(new Date(e.target.value))}
+                    value={field.value && field.value instanceof Date && !isNaN(field.value.getTime()) 
+                      ? field.value.toISOString().split("T")[0] 
+                      : field.value && typeof field.value === 'string'
+                      ? field.value
+                      : ""}
+                    onChange={(e) => {
+                      const dateValue = e.target.value ? new Date(e.target.value) : new Date();
+                      field.onChange(dateValue);
+                    }}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
                   />
                 </FormControl>
                 <FormMessage />

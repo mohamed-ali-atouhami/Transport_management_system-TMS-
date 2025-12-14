@@ -59,7 +59,10 @@ export function ExpenseActions({ expense, trips, vehicles }: ExpenseActionsProps
 
   const relatedData = {
     trips,
-    vehicles,
+    vehicles: vehicles.map(vehicle => ({
+      ...vehicle,
+      label: `${vehicle.brand} ${vehicle.model} - ${vehicle.plateNumber}`,
+    })),
   };
 
   return (
