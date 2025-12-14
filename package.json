@@ -10,8 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
-    "backfill:users": "tsx scripts/backfill-clerk-users.ts",
-    "postinstall": "prisma generate"
+    "backfill:users": "tsx scripts/backfill-clerk-users.ts"
   },
   "dependencies": {
     "@clerk/backend": "^2.22.0",

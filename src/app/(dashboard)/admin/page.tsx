@@ -120,8 +120,8 @@ export default async function AdminPage() {
     }),
   ]);
 
-  const revenue = monthlyRevenue._sum.totalCost || 0;
-  const lastRevenue = lastMonthRevenue._sum.totalCost || 0;
+  const revenue = Number(monthlyRevenue._sum.totalCost || 0);
+  const lastRevenue = Number(lastMonthRevenue._sum.totalCost || 0);
   const revenueChange = lastRevenue > 0 ? ((revenue - lastRevenue) / lastRevenue) * 100 : 0;
 
   return (

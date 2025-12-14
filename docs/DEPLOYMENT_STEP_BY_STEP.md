@@ -44,7 +44,7 @@ Before starting, make sure you have:
 3. **IMPORTANT:** Select **"Connection pooling"** tab (not "URI" or "Session")
 4. Copy the connection string (it looks like: `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true`)
 5. **Save this somewhere safe** - you'll need it in Step 4
-
+ 
 **Why Connection Pooling?**
 - Vercel uses serverless functions
 - Each function needs a database connection
@@ -69,16 +69,40 @@ If it works, you're good to go!
 
 ## Step 2: Run Database Migrations (5 minutes)
 
-### 2.1 Push Schema to Supabase
+### 2.1 Update Your .env File
+
+1. Open your `.env` file in the project root
+2. Find the `DATABASE_URL` line
+3. Replace it with your Supabase connection string (from Step 1.3):
+
+```env
+DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true"
+```
+
+**Important:** 
+- Use the **Connection pooling** URL (not the direct connection) for production/Vercel
+- For local migration, you can use the direct connection (port 5432)
+- **If your password contains special characters** (`/`, `!`, `@`, `#`, `$`, `%`, `&`, `*`, etc.), you must URL-encode them:
+  - `/` → `%2F`
+  - `!` → `%21`
+  - `@` → `%40`
+  - `#` → `%23`
+  - `$` → `%24`
+  - `%` → `%25`
+  - `&` → `%26`
+  - `*` → `%2A`
+- Keep the quotes around the connection string
+- Make sure there are no extra spaces
+
+**Example:** If your password is `6JtzvHW/tpes!s4`, encode it as `6JtzvHW%2Ftpes%21s4`
+
+### 2.2 Push Schema to Supabase
 
 You have two options:
 
-**Option A: Using Prisma Studio (Easiest)**
+**Option A: Using Prisma db push (Easiest)**
 ```bash
-# Set your Supabase connection string temporarily
-export DATABASE_URL="your_supabase_connection_string_here"
-
-# Push schema to database
+# Push schema to database (reads from .env file)
 npx prisma db push
 
 # Generate Prisma client
@@ -87,10 +111,7 @@ npx prisma generate
 
 **Option B: Using Prisma Migrate (Recommended for Production)**
 ```bash
-# Set your Supabase connection string temporarily
-export DATABASE_URL="your_supabase_connection_string_here"
-
-# Create and apply migration
+# Create and apply migration (reads from .env file)
 npx prisma migrate dev --name init
 
 # Generate Prisma client
