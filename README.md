@@ -61,7 +61,7 @@ npm run dev
 
 ## 🔐 Environment Variables
 
-Create a `.env.local` file in the root directory with the following variables:
+Create a `.env` file in the root directory with the following variables:
 
 ```env
 # Database
@@ -85,7 +85,6 @@ RESEND_FROM_EMAIL="Transport Management System <noreply@yourdomain.com>"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
-**Important:** Never commit your `.env` file to git. It contains sensitive keys.
 
 ## 📁 Project Structure
 
@@ -164,7 +163,7 @@ Quick deployment to Vercel:
 - **UI**: shadcn/ui + Tailwind CSS
 - **Image Storage**: Cloudinary
 - **Email**: Resend
-- **Deployment**: Vercel (recommended)
+- **Deployment**: Vercel
 
 ## 👥 Roles & Permissions
 
@@ -215,17 +214,9 @@ The system automatically creates notifications for:
 - Check Cloudinary credentials
 - Ensure upload preset exists
 
-## 📝 License
+## 📧 HIRE ME 
 
-[Your License Here]
-
-## 🤝 Contributing
-
-[Your Contributing Guidelines Here]
-
-## 📧 Support
-
-[Your Support Contact Here]
+[mohamedaliatouhami2002@gmail.com]
 
 ---
 
