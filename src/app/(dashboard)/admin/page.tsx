@@ -280,11 +280,13 @@ export default async function AdminPage() {
                           </div>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
                             <span>{shipment.client.user.name}</span>
-                            <span>${shipment.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                            <span>
+                              ${Number(shipment.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            </span>
                             <span>{format(new Date(shipment.createdAt), "MMM dd, yyyy")}</span>
                           </div>
+                          </div>
                         </div>
-                      </div>
                     </Link>
                   ))}
                 </div>
